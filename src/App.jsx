@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { jsPDF } from 'jspdf'
 import { createWorker } from 'tesseract.js'
 import './App.css'
@@ -19,11 +19,17 @@ export default function App() {
   const [margin, setMargin] = useState(20)
   const [cleanupMode, setCleanupMode] = useState('enhance')
   const [ocrMode, setOcrMode] = useState('off')
+  const [driveFolder, setDriveFolder] = useState('')
   const [generating, setGenerating] = useState(false)
   const [status, setStatus] = useState('')
   const [driveLink, setDriveLink] = useState('')
   const [ocrText, setOcrText] = useState('')
+  const [cameraOpen, setCameraOpen] = useState(false)
+  const [cameraStream, setCameraStream] = useState(null)
+  const [cameraError, setCameraError] = useState('')
   const fileInputRef = useRef()
+  const videoRef = useRef()
+  const canvasRef = useRef()
 
   const addFiles = useCallback((incoming) => {
     const imageFiles = [...incoming].filter(file => file.type.startsWith('image/'))
@@ -47,6 +53,64 @@ export default function App() {
     setDragging(false)
     addFiles(event.dataTransfer.files)
   }, [addFiles])
+
+  useEffect(() => {
+    if (videoRef.current && cameraStream) {
+      videoRef.current.srcObject = cameraStream
+    }
+  }, [cameraStream])
+
+  useEffect(() => () => {
+    if (cameraStream) stopMediaStream(cameraStream)
+  }, [cameraStream])
+
+  const startCamera = async () => {
+    setCameraError('')
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError('Camera capture is not available in this browser.')
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
+      })
+      setCameraStream(stream)
+      setCameraOpen(true)
+    } catch {
+      setCameraError('Camera permission was blocked or no camera was found.')
+    }
+  }
+
+  const stopCamera = () => {
+    if (cameraStream) stopMediaStream(cameraStream)
+    setCameraStream(null)
+    setCameraOpen(false)
+  }
+
+  const capturePhoto = async () => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas || !video.videoWidth) return
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92))
+    if (!blob) return
+
+    const file = new File([blob], `camera_scan_${Date.now()}.jpg`, { type: 'image/jpeg' })
+    addFiles([file])
+    setStatus('Captured page added to the PDF queue.')
+  }
 
   const clearFiles = () => {
     files.forEach(file => URL.revokeObjectURL(file.preview))
@@ -127,7 +191,7 @@ export default function App() {
       })
       setOcrText(text)
       setStatus('Connecting to Google Drive...')
-      const link = await uploadBlobToDrive(doc.output('blob'), filename)
+      const link = await uploadBlobToDrive(doc.output('blob'), filename, driveFolder)
       setDriveLink(link)
       setStatus('Uploaded to Google Drive.')
     } catch (err) {
@@ -150,28 +214,52 @@ export default function App() {
       </header>
 
       <main className="main">
-        <div
-          className={`drop-zone ${dragging ? 'dragover' : ''}`}
-          onDragOver={event => {
-            event.preventDefault()
-            setDragging(true)
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={onDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*"
-            className="file-input"
-            onChange={event => addFiles(event.target.files)}
-          />
-          <div className="drop-glyph">{dragging ? 'v' : '+'}</div>
-          <div className="drop-main">Drop scanned images here or click to browse</div>
-          <div className="drop-sub">PNG, JPG, WEBP, GIF, BMP - each image becomes one PDF page</div>
-        </div>
+        <section className="capture-section">
+          <div
+            className={`drop-zone ${dragging ? 'dragover' : ''}`}
+            onDragOver={event => {
+              event.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*"
+              className="file-input"
+              onChange={event => addFiles(event.target.files)}
+            />
+            <div className="drop-glyph">{dragging ? 'v' : '+'}</div>
+            <div className="drop-main">Drop scanned images here or click to browse</div>
+            <div className="drop-sub">PNG, JPG, WEBP, GIF, BMP - each image becomes one PDF page</div>
+          </div>
+
+          <div className="camera-panel">
+            {!cameraOpen ? (
+              <>
+                <div>
+                  <h2 className="panel-title">Camera scan</h2>
+                  <p className="panel-copy">Take document photos here and add each page to the queue.</p>
+                </div>
+                <button className="btn-camera" onClick={startCamera}>Open camera</button>
+                {cameraError && <p className="camera-error">{cameraError}</p>}
+              </>
+            ) : (
+              <>
+                <video ref={videoRef} className="camera-preview" autoPlay playsInline muted />
+                <canvas ref={canvasRef} className="capture-canvas" />
+                <div className="camera-actions">
+                  <button className="btn-camera primary" onClick={capturePhoto}>Capture page</button>
+                  <button className="btn-camera" onClick={stopCamera}>Close camera</button>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
 
         {hasFiles && (
           <>
@@ -259,6 +347,15 @@ export default function App() {
                     <option value="extract">Extract text only</option>
                     <option value="appendix">Add searchable text pages</option>
                   </select>
+                </div>
+                <div className="ctrl-group span-2">
+                  <label>Drive folder link or ID</label>
+                  <input
+                    type="text"
+                    value={driveFolder}
+                    onChange={event => setDriveFolder(event.target.value)}
+                    placeholder="Optional: https://drive.google.com/drive/folders/..."
+                  />
                 </div>
               </div>
 
@@ -457,6 +554,10 @@ function slugify(value) {
   return value.trim().replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').toLowerCase() || 'document'
 }
 
+function stopMediaStream(stream) {
+  stream.getTracks().forEach(track => track.stop())
+}
+
 function loadGoogleIdentityScript() {
   if (window.google?.accounts?.oauth2) return Promise.resolve()
 
@@ -499,12 +600,14 @@ async function getGoogleAccessToken() {
   })
 }
 
-async function uploadBlobToDrive(blob, filename) {
+async function uploadBlobToDrive(blob, filename, folderInput) {
   const token = await getGoogleAccessToken()
   const boundary = 'imgtopdf_boundary'
+  const folderId = extractDriveFolderId(folderInput)
   const metadata = {
     name: filename,
     mimeType: 'application/pdf',
+    ...(folderId ? { parents: [folderId] } : {}),
   }
 
   const body = new Blob([
@@ -531,4 +634,17 @@ async function uploadBlobToDrive(blob, filename) {
 
   const data = await response.json()
   return data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`
+}
+
+function extractDriveFolderId(value) {
+  const input = value.trim()
+  if (!input) return ''
+
+  const foldersMatch = input.match(/\/folders\/([a-zA-Z0-9_-]+)/)
+  if (foldersMatch) return foldersMatch[1]
+
+  const queryMatch = input.match(/[?&]id=([a-zA-Z0-9_-]+)/)
+  if (queryMatch) return queryMatch[1]
+
+  return input
 }

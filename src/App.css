@@ -40,6 +40,13 @@ body {
 .logo-text { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
 .tagline { font-size: 0.78rem; color: var(--ink-3); font-family: var(--mono); }
 
+.capture-section {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 14px;
+  align-items: stretch;
+}
+
 .drop-zone {
   border: 1.5px dashed var(--border);
   border-radius: var(--radius);
@@ -56,6 +63,66 @@ body {
 .drop-main { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
 .drop-sub { font-size: 0.75rem; color: var(--ink-3); font-family: var(--mono); }
 .file-input { display: none; }
+
+.camera-panel {
+  min-height: 238px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+
+.panel-title {
+  margin: 0 0 0.35rem;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.panel-copy {
+  color: var(--ink-3);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.btn-camera {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-weight: 700;
+}
+
+.btn-camera:hover { background: var(--surface-2); }
+.btn-camera.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.btn-camera.primary:hover { background: var(--ink-2); }
+
+.camera-error {
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.camera-preview {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  object-fit: cover;
+}
+
+.capture-canvas { display: none; }
+.camera-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
 .queue-section { margin-top: 2rem; }
 .queue-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
@@ -176,8 +243,9 @@ body {
 
 @media (max-width: 680px) {
   .app { padding: 1.5rem 1rem 3rem; }
-  .controls-grid, .action-row { grid-template-columns: 1fr; }
+  .capture-section, .controls-grid, .action-row { grid-template-columns: 1fr; }
   .ctrl-group.span-2 { grid-column: span 1; }
   .file-row { gap: 8px; padding: 8px; }
   .file-actions { flex-direction: column; }
+  .camera-actions { grid-template-columns: 1fr; }
 }
