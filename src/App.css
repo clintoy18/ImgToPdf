@@ -55,6 +55,7 @@ body {
 .drop-zone:hover .drop-glyph { color: var(--ink); }
 .drop-main { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
 .drop-sub { font-size: 0.75rem; color: var(--ink-3); font-family: var(--mono); }
+.file-input { display: none; }
 
 .queue-section { margin-top: 2rem; }
 .queue-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
@@ -78,12 +79,13 @@ body {
 .file-name { flex: 1; font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .file-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .order-btn, .rm-btn {
-  width: 26px; height: 26px;
+  min-width: 30px; height: 26px;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--ink-3);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
+  font-family: var(--mono);
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: background 0.1s, color 0.1s;
@@ -112,7 +114,13 @@ body {
 }
 .ctrl-group input:focus, .ctrl-group select:focus { border-color: var(--ink); }
 
-.btn-generate {
+.action-row {
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  gap: 10px;
+}
+
+.btn-generate, .btn-drive {
   width: 100%;
   padding: 13px 24px;
   background: var(--ink);
@@ -126,5 +134,50 @@ body {
   letter-spacing: -0.01em;
   transition: background 0.15s, opacity 0.15s;
 }
+.btn-drive {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+}
 .btn-generate:hover:not(:disabled) { background: var(--ink-2); }
-.btn-generate:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-drive:hover:not(:disabled) { background: var(--surface-2); }
+.btn-generate:disabled, .btn-drive:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.status {
+  margin-top: 0.85rem;
+  color: var(--ink-3);
+  font-size: 0.78rem;
+  font-family: var(--mono);
+  text-align: left;
+}
+
+.drive-link {
+  display: inline-flex;
+  margin-top: 0.55rem;
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.ocr-output {
+  width: 100%;
+  min-height: 150px;
+  margin-top: 1rem;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+@media (max-width: 680px) {
+  .app { padding: 1.5rem 1rem 3rem; }
+  .controls-grid, .action-row { grid-template-columns: 1fr; }
+  .ctrl-group.span-2 { grid-column: span 1; }
+  .file-row { gap: 8px; padding: 8px; }
+  .file-actions { flex-direction: column; }
+}
